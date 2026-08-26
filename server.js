@@ -80,7 +80,7 @@ io.on('connection', (socket) => {
     hostId = socket.id;
     let clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
     if (clientIp.includes(',')) clientIp = clientIp.split(',')[0].trim();
-    
+
     hostIp = clientIp;
     console.log(`[HOST] Registered: ${hostId} (IP: ${hostIp})`);
     socket.emit('host-registered');
@@ -91,9 +91,9 @@ io.on('connection', (socket) => {
   socket.on('register-client', () => {
     let clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
     if (clientIp.includes(',')) clientIp = clientIp.split(',')[0].trim();
-    
+
     console.log(`[CLIENT] Registered: ${socket.id} (IP: ${clientIp})`);
-    
+
     // Strict IP Check (Fixed for Cloudflare/Render Proxies)
     if (hostIp && clientIp !== hostIp) {
       console.log(`[REJECT] Client ${socket.id} IP ${clientIp} doesn't match Host IP ${hostIp}`);
