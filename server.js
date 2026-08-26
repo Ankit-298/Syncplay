@@ -88,14 +88,7 @@ io.on('connection', (socket) => {
   socket.on('register-client', () => {
     console.log(`[CLIENT] Registered: ${socket.id} (IP: ${clientIp})`);
     
-    // Strict IP Check
-    if (hostIp && clientIp !== hostIp) {
-      console.log(`[REJECT] Client ${socket.id} IP ${clientIp} doesn't match Host IP ${hostIp}`);
-      socket.emit('network-error', 'Access Denied: You must be on the exact same Wi-Fi/Hotspot network as the Host.');
-      socket.disconnect();
-      return;
-    }
-
+    // Strict IP check removed for cloud hosting.
     if (hostId) {
       io.to(hostId).emit('client-connected', socket.id);
     }
