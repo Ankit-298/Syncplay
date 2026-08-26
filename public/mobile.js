@@ -77,7 +77,8 @@ socket.on('time-sync-response', (data) => {
 function getServerTime() { return Date.now() + timeOffset; }
 
 // ─── SOCKET REGISTRATION ──────────────────────────────────────
-socket.emit('register-host');
+const roomCode = Math.random().toString(36).substring(2, 8); // Generate 6-char room code
+socket.emit('register-host', { room: roomCode });
 
 socket.on('host-registered', () => {
   hostStatus.className = 'm-status-chip connected';
@@ -325,10 +326,10 @@ if (mobileStopBtn) {
 }
 
 if (showQrBtn) {
-  let globalClientUrl = window.location.origin + '/client';
+  let globalClientUrl = window.location.origin + '/client?room=' + roomCode;
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     fetch('/api/ip').then(res => res.json()).then(data => {
-      globalClientUrl = `http://${data.ip}:${data.port}/client`;
+      globalClientUrl = `http://${data.ip}:${data.port}/client?room=` + roomCode;
     }).catch(() => {});
   }
 
