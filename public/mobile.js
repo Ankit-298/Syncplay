@@ -354,6 +354,14 @@ if (qrModal) {
   });
 }
 
+// Keep WebRTC latency in check by forcing clients to flush buffers
+setInterval(() => {
+  if (mobileAudioPlayer && !mobileAudioPlayer.paused && localStream) {
+    socket.emit('force-sync');
+  }
+}, 10000);
+
+
 function stopCasting() {
   if (localStream) {
     localStream.getTracks().forEach(t => t.stop());
