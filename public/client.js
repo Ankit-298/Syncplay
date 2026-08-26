@@ -443,10 +443,13 @@ unmuteBtn.addEventListener('click', () => {
 });
 
 // ─── SOCKET EVENTS ───────────────────────────────────────────
+const urlParams = new URLSearchParams(window.location.search);
+const roomCode = urlParams.get('room');
+
 socket.on('connect', () => {
   syncTime();
   statusText.textContent = 'Connected. Waiting for host...';
-  socket.emit('register-client');
+  socket.emit('register-client', { room: roomCode });
 });
 
 socket.on('network-error', (msg) => {
@@ -460,7 +463,7 @@ socket.on('disconnect', () => {
 });
 socket.on('host-available', () => {
   statusText.textContent = 'Host found! Connecting...';
-  socket.emit('register-client');
+  socket.emit('register-client', { room: roomCode });
 });
 socket.on('host-disconnected', () => {
   showConnectionScreen('Host disconnected. Waiting...');
@@ -626,7 +629,7 @@ socket.on('webrtc-offer', async (data) => {
       if (pc?.connectionState === 'failed') {
         showConnectionScreen('Connection failed. Retrying...');
         pc.close(); pc = null; hostSocketId = null;
-        setTimeout(() => socket.emit('register-client'), 1500);
+        setTimeout(() => socket.emit('register-client', { room: roomCode }), 1500);
       }
     };
   }
