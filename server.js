@@ -76,29 +76,23 @@ io.on('connection', (socket) => {
   console.log(`[+] ${socket.id} (IP: ${clientIp})`);
 
   // === Host Registration ===
-  socket.on('register-host', () => {
+  socket.on('register-host', (data) => {
     hostId = socket.id;
-    let clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
-    if (clientIp.includes(',')) clientIp = clientIp.split(',')[0].trim();
-
-    hostIp = clientIp;
-    console.log(`[HOST] Registered: ${hostId} (IP: ${hostIp})`);
+    hostIp = data?.room; // Store Room Code in hostIp variable for convenience
+    console.log(`[HOST] Registered: ${hostId} (Room: ${hostIp})`);
     socket.emit('host-registered');
     socket.broadcast.emit('host-available');
   });
 
   // === Client Registration ===
-  socket.on('register-client', () => {
-    let clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
-    if (clientIp.includes(',')) clientIp = clientIp.split(',')[0].trim();
+  socket.on('register-client', (data) => {
+    const clientRoom = data?.room;
+    console.log(`[CLIENT] Registered: ${socket.id} (Room: ${clientRoom})`);
 
-    console.log(`[CLIENT] Registered: ${socket.id} (IP: ${clientIp})`);
-
-    // Strict IP Check (Fixed for Cloudflare/Render Proxies)
-    if (hostIp && clientIp !== hostIp) {
-      console.log(`[REJECT] Client ${socket.id} IP ${clientIp} doesn't match Host IP ${hostIp}`);
-      socket.emit('network-error', 'Access Denied: You must be on the exact same Wi-Fi/Hotspot network as the Host.');
-      socket.disconnect();
+    // Room Code Check
+    if (hostIp && clientRoom !== hostIp) {
+      console.log(`[REJECT] Client ${socket.id} Room ${clientRoom} doesn't match Host Room ${hostIp}`);
+      socket.emit('network-error', 'Access Denied: Invalid QR Code or Host disconnected. Please scan the QR again.');
       return;
     }
 
@@ -202,7 +196,7 @@ io.on('connection', (socket) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   const ip = getLocalIP();
-  console.log(`\n╔══════════════════════════════════════╗`);
+  console.log(`\n  ╔══════════════════════════════════════╗`);
   console.log(`  ║       SYNC AUDIO SERVER RUNNING      ║`);
   console.log(`  ╠══════════════════════════════════════╣`);
   console.log(`  ║  Host:      http://localhost:${PORT}       ║`);
