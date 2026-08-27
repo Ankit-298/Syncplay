@@ -279,7 +279,15 @@ if (mobileLiveBtn && mobileLiveFileInput) {
     const files = Array.from(e.target.files);
     if (!files.length) return;
     
-    files.forEach(file => {
+    const audioFiles = files.filter(f => f.type.startsWith('audio/') || f.name.match(/\.(mp3|wav|ogg|aac|m4a|flac)$/i));
+    
+    if (audioFiles.length === 0) {
+      alert("Please select valid audio files (e.g., MP3, WAV). PDFs and other documents are not supported.");
+      mobileLiveFileInput.value = '';
+      return;
+    }
+    
+    audioFiles.forEach(file => {
       playlist.push({ file, name: file.name.replace(/\.[^.]+$/, ''), url: URL.createObjectURL(file) });
     });
     
@@ -305,6 +313,35 @@ function playTrack(idx) {
   mobileAudioPlayer.onloadedmetadata = () => {
     if (mobileNpTitle) mobileNpTitle.textContent = track.name;
     if (mobileTimeDuration) mobileTimeDuration.textContent = fmt(mobileAudioPlayer.duration);
+    
+    // Media Session API for lock screen controls
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: track.name,
+        artist: 'SyncPlay Host',
+        album: 'Live Session'
+      });
+      navigator.mediaSession.setActionHandler('play', () => {
+        mobileAudioPlayer.play();
+        isPaused = false;
+        socket.emit('sync-resume', { time: mobileAudioPlayer.currentTime });
+        setTrackStatus('Playing', true);
+        if (mobilePlayIcon) mobilePlayIcon.innerHTML = PAUSE_SVG;
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        mobileAudioPlayer.pause();
+        isPaused = true;
+        socket.emit('sync-pause');
+        setTrackStatus('Paused', false);
+        if (mobilePlayIcon) mobilePlayIcon.innerHTML = PLAY_SVG;
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', () => {
+        if (currentTrackIdx > 0) playTrack(currentTrackIdx - 1);
+      });
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+        if (currentTrackIdx < playlist.length - 1) playTrack(currentTrackIdx + 1);
+      });
+    }
   };
   
   // Capture Stream
@@ -654,7 +691,28 @@ function reorderPlaylist(fromIdx, toIdx) {
 }
 
 // ─── WEBRTC (PEER CONNECTIONS) ─────────────────────────────────
-const iceServers = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const iceServers = { 
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    }
+  ] 
+};
 
 async function createPeerConnection(clientId) {
   const pc = new RTCPeerConnection(iceServers);
