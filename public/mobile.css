@@ -759,3 +759,225 @@ body {
   border-radius: 8px;
   border: 1px solid rgba(34, 211, 238, .18);
 }
+
+/* ── PLAYLIST BUTTON ─────────────────────────────────────── */
+.m-playlist-trigger {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  background: rgba(34, 211, 238, .12);
+  border: 1px solid rgba(34, 211, 238, .25);
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--cyan);
+  transition: all .2s;
+  position: relative;
+}
+
+.m-playlist-trigger:active {
+  transform: scale(.93);
+}
+
+.m-playlist-trigger.active {
+  background: rgba(34, 211, 238, .25);
+  border-color: var(--cyan);
+  box-shadow: 0 0 12px rgba(34, 211, 238, .3);
+}
+
+.m-pl-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 100px;
+  background: var(--violet);
+  color: white;
+  font-size: .55rem;
+  font-weight: 800;
+  font-family: var(--font);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* ── PLAYLIST CARD ───────────────────────────────────────── */
+.m-playlist-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+  animation: slideUp .25s ease-out;
+}
+
+.m-playlist-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.m-playlist-title {
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.m-pl-count {
+  font-size: .68rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.m-playlist-actions {
+  display: flex;
+  gap: .4rem;
+}
+
+.m-pl-clear-btn {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .3rem .6rem;
+  background: rgba(239, 68, 68, .1);
+  border: 1px solid rgba(239, 68, 68, .25);
+  border-radius: 7px;
+  color: var(--red);
+  font-family: var(--font);
+  font-size: .7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.m-pl-clear-btn:active {
+  transform: scale(.94);
+}
+
+/* ── PLAYLIST LIST ───────────────────────────────────────── */
+.m-playlist-list {
+  list-style: none;
+  padding: .4rem .5rem;
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  max-height: 300px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.m-pl-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: .78rem;
+  padding: 1.5rem;
+}
+
+.m-pl-item {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .55rem .7rem;
+  background: rgba(255, 255, 255, .03);
+  border-radius: 9px;
+  font-size: .8rem;
+  transition: all .2s;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.m-pl-item:active {
+  cursor: grabbing;
+}
+
+.m-pl-item.playing {
+  background: rgba(139, 92, 246, .12);
+  border: 1px solid rgba(139, 92, 246, .3);
+}
+
+.m-pl-item.dragging {
+  opacity: .5;
+  background: rgba(34, 211, 238, .1);
+  border: 1px dashed rgba(34, 211, 238, .4);
+  transform: scale(.97);
+}
+
+.m-pl-item.drag-over {
+  border-top: 2px solid var(--cyan);
+  padding-top: calc(.55rem - 2px);
+}
+
+.m-pl-drag-handle {
+  flex-shrink: 0;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  opacity: .5;
+}
+
+.m-pl-num {
+  flex-shrink: 0;
+  width: 20px;
+  font-size: .68rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-align: center;
+}
+
+.m-pl-item.playing .m-pl-num {
+  color: var(--violet);
+}
+
+.m-pl-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.m-pl-item.playing .m-pl-name {
+  color: var(--violet);
+}
+
+.m-pl-duration {
+  flex-shrink: 0;
+  font-size: .68rem;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.m-pl-remove {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, .08);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--red);
+  cursor: pointer;
+  opacity: .6;
+  transition: all .2s;
+}
+
+.m-pl-remove:active {
+  transform: scale(.85);
+  opacity: 1;
+}
