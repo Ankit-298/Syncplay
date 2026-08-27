@@ -40,6 +40,14 @@ const closeQrBtn = document.getElementById('closeQrBtn');
 const qrModal    = document.getElementById('qrModal');
 const qrCodeImg  = document.getElementById('qrCodeImg');
 
+// Playlist DOM refs
+const playlistToggleBtn = document.getElementById('playlistToggleBtn');
+const playlistPanel     = document.getElementById('playlistPanel');
+const playlistList      = document.getElementById('playlistList');
+const playlistBadge     = document.getElementById('playlistBadge');
+const playlistCount     = document.getElementById('playlistCount');
+const playlistClearBtn  = document.getElementById('playlistClearBtn');
+
 // ─── STATE ────────────────────────────────────────────────────
 let connectedClients = [];
 let peerConnections  = {};
@@ -51,6 +59,11 @@ let timeOffset       = 0;
 let rtt              = 0;
 let playTimeout      = null;
 let progressRAF      = null;
+
+// Playlist state
+let playlist         = [];  // Array of { file: File, name: string, url: string }
+let currentTrackIdx  = -1;
+let playlistVisible  = false;
 
 const PLAY_SVG  = `<polygon points="5 3 19 12 5 21 5 3"/>`;
 const PAUSE_SVG = `<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>`;
@@ -263,41 +276,69 @@ if (mobileLiveBtn && mobileLiveFileInput) {
   mobileLiveBtn.addEventListener('click', () => mobileLiveFileInput.click());
   
   mobileLiveFileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
     
-    mobileAudioPlayer.src = URL.createObjectURL(file);
-    setupAnalyser(); // Wire up Web Audio API
+    files.forEach(file => {
+      playlist.push({ file, name: file.name.replace(/\.[^.]+$/, ''), url: URL.createObjectURL(file) });
+    });
     
-    mobileAudioPlayer.onloadedmetadata = () => {
-      if (mobilePlayerInfo) mobilePlayerInfo.style.display = 'block';
-      if (mobileNpTitle) mobileNpTitle.textContent = file.name.replace(/\.[^.]+$/, '');
-      if (mobileTimeDuration) mobileTimeDuration.textContent = fmt(mobileAudioPlayer.duration);
-    };
+    renderPlaylist();
     
-    // Capture Stream
-    if (mobileAudioPlayer.captureStream) {
-      localStream = mobileAudioPlayer.captureStream();
-    } else if (mobileAudioPlayer.mozCaptureStream) {
-      localStream = mobileAudioPlayer.mozCaptureStream();
-    } else {
-      alert("captureStream not supported in this mobile browser.");
-      return;
+    // If nothing is playing, start the first new track
+    if (currentTrackIdx === -1) {
+      playTrack(playlist.length - files.length);
     }
     
-    // Update UI
-    mobileLiveBtn.style.display = 'none';
-    mobileActiveControls.style.display = 'flex';
-    if (mobileVizIdle) mobileVizIdle.style.display = 'none';
-    setTrackStatus('Playing', true);
-    startMobileFakeWave();
-    
-    // Broadcast to all clients
-    connectedClients.forEach(id => createPeerConnection(id));
-    
-    // Play with sync logic
-    playMobileSync();
+    mobileLiveFileInput.value = ''; // Reset so same files can be re-added
   });
+}
+
+function playTrack(idx) {
+  if (idx < 0 || idx >= playlist.length) return;
+  currentTrackIdx = idx;
+  const track = playlist[idx];
+  
+  mobileAudioPlayer.src = track.url;
+  setupAnalyser();
+  
+  mobileAudioPlayer.onloadedmetadata = () => {
+    if (mobileNpTitle) mobileNpTitle.textContent = track.name;
+    if (mobileTimeDuration) mobileTimeDuration.textContent = fmt(mobileAudioPlayer.duration);
+  };
+  
+  // Capture Stream
+  if (mobileAudioPlayer.captureStream) {
+    localStream = mobileAudioPlayer.captureStream();
+  } else if (mobileAudioPlayer.mozCaptureStream) {
+    localStream = mobileAudioPlayer.mozCaptureStream();
+  } else {
+    alert("captureStream not supported in this mobile browser.");
+    return;
+  }
+  
+  // Update UI
+  mobileLiveBtn.style.display = 'none';
+  mobileActiveControls.style.display = 'flex';
+  if (mobileVizIdle) mobileVizIdle.style.display = 'none';
+  setTrackStatus('Playing', true);
+  startMobileFakeWave();
+  
+  // Broadcast to all clients
+  connectedClients.forEach(id => createPeerConnection(id));
+  
+  // Play with sync logic
+  playMobileSync();
+  renderPlaylist();
+  
+  // Auto-play next track when current ends
+  mobileAudioPlayer.onended = () => {
+    if (currentTrackIdx < playlist.length - 1) {
+      playTrack(currentTrackIdx + 1);
+    } else {
+      stopCasting();
+    }
+  };
 }
 
 // ─── CONTROLS ──────────────────────────────────────────────────
@@ -371,6 +412,7 @@ function stopCasting() {
   if (mobileAudioPlayer) {
     mobileAudioPlayer.pause();
     mobileAudioPlayer.src = "";
+    mobileAudioPlayer.onended = null;
   }
   
   if (playTimeout) clearTimeout(playTimeout);
@@ -388,7 +430,227 @@ function stopCasting() {
 
   if (mobileVizIdle) mobileVizIdle.style.display = 'flex';
   setTrackStatus('Ready', false);
+  currentTrackIdx = -1;
+  renderPlaylist();
   if (mobileLiveFileInput) mobileLiveFileInput.value = '';
+}
+
+// ─── PLAYLIST LOGIC ────────────────────────────────────────────
+if (playlistToggleBtn) {
+  playlistToggleBtn.addEventListener('click', () => {
+    playlistVisible = !playlistVisible;
+    if (playlistPanel) playlistPanel.style.display = playlistVisible ? 'block' : 'none';
+    playlistToggleBtn.classList.toggle('active', playlistVisible);
+  });
+}
+
+if (playlistClearBtn) {
+  playlistClearBtn.addEventListener('click', () => {
+    const wasPlaying = currentTrackIdx >= 0;
+    if (wasPlaying) stopCasting();
+    playlist.forEach(t => URL.revokeObjectURL(t.url));
+    playlist = [];
+    currentTrackIdx = -1;
+    renderPlaylist();
+    if (mobileLiveBtn) mobileLiveBtn.style.display = '';
+    if (mobileActiveControls) mobileActiveControls.style.display = '';
+  });
+}
+
+function renderPlaylist() {
+  if (!playlistList) return;
+  if (playlistBadge) playlistBadge.textContent = playlist.length;
+  if (playlistCount) playlistCount.textContent = playlist.length + ' track' + (playlist.length !== 1 ? 's' : '');
+  
+  if (playlist.length === 0) {
+    playlistList.innerHTML = '<li class="m-pl-empty">No tracks added yet. Tap upload to add music.</li>';
+    return;
+  }
+  
+  playlistList.innerHTML = '';
+  playlist.forEach((track, i) => {
+    const li = document.createElement('li');
+    li.className = 'm-pl-item' + (i === currentTrackIdx ? ' playing' : '');
+    li.draggable = true;
+    li.dataset.idx = i;
+    li.innerHTML = `
+      <span class="m-pl-drag-handle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
+          <line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/>
+        </svg>
+      </span>
+      <span class="m-pl-num">${i + 1}</span>
+      <span class="m-pl-name">${track.name}</span>
+      <button class="m-pl-remove" data-idx="${i}" title="Remove">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    `;
+    
+    // Tap to play this track
+    li.addEventListener('click', (e) => {
+      if (e.target.closest('.m-pl-remove') || e.target.closest('.m-pl-drag-handle')) return;
+      playTrack(i);
+    });
+    
+    // Remove button
+    li.querySelector('.m-pl-remove').addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeTrack(i);
+    });
+    
+    // Drag events
+    li.addEventListener('dragstart', handleDragStart);
+    li.addEventListener('dragover', handleDragOver);
+    li.addEventListener('dragleave', handleDragLeave);
+    li.addEventListener('drop', handleDrop);
+    li.addEventListener('dragend', handleDragEnd);
+    
+    // Touch drag events (for mobile)
+    li.addEventListener('touchstart', handleTouchStart, { passive: false });
+    li.addEventListener('touchmove', handleTouchMove, { passive: false });
+    li.addEventListener('touchend', handleTouchEnd);
+    
+    playlistList.appendChild(li);
+  });
+}
+
+function removeTrack(idx) {
+  URL.revokeObjectURL(playlist[idx].url);
+  playlist.splice(idx, 1);
+  
+  if (idx === currentTrackIdx) {
+    // Currently playing track removed
+    if (playlist.length > 0) {
+      const nextIdx = Math.min(idx, playlist.length - 1);
+      playTrack(nextIdx);
+    } else {
+      stopCasting();
+      if (mobileLiveBtn) mobileLiveBtn.style.display = '';
+      if (mobileActiveControls) mobileActiveControls.style.display = '';
+    }
+  } else if (idx < currentTrackIdx) {
+    currentTrackIdx--;
+    renderPlaylist();
+  } else {
+    renderPlaylist();
+  }
+}
+
+// ─── DRAG & DROP REORDER ──────────────────────────────────────
+let dragIdx = -1;
+
+function handleDragStart(e) {
+  dragIdx = parseInt(this.dataset.idx);
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  this.classList.add('drag-over');
+}
+
+function handleDragLeave() {
+  this.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  this.classList.remove('drag-over');
+  const dropIdx = parseInt(this.dataset.idx);
+  if (dragIdx === dropIdx) return;
+  reorderPlaylist(dragIdx, dropIdx);
+}
+
+function handleDragEnd() {
+  this.classList.remove('dragging');
+  dragIdx = -1;
+}
+
+// ─── TOUCH DRAG (MOBILE) ──────────────────────────────────────
+let touchDragIdx = -1;
+let touchStartY = 0;
+let touchHoldTimer = null;
+let isTouchDragging = false;
+let touchClone = null;
+
+function handleTouchStart(e) {
+  touchStartY = e.touches[0].clientY;
+  touchDragIdx = parseInt(this.dataset.idx);
+  isTouchDragging = false;
+  
+  // Long press to start drag
+  touchHoldTimer = setTimeout(() => {
+    isTouchDragging = true;
+    this.classList.add('dragging');
+    // Haptic feedback if available
+    if (navigator.vibrate) navigator.vibrate(30);
+  }, 300);
+}
+
+function handleTouchMove(e) {
+  if (!isTouchDragging) {
+    const diff = Math.abs(e.touches[0].clientY - touchStartY);
+    if (diff > 10) { clearTimeout(touchHoldTimer); }
+    return;
+  }
+  e.preventDefault();
+  
+  const touchY = e.touches[0].clientY;
+  const items = playlistList.querySelectorAll('.m-pl-item');
+  items.forEach(item => item.classList.remove('drag-over'));
+  
+  for (const item of items) {
+    const rect = item.getBoundingClientRect();
+    if (touchY >= rect.top && touchY <= rect.bottom) {
+      if (parseInt(item.dataset.idx) !== touchDragIdx) {
+        item.classList.add('drag-over');
+      }
+      break;
+    }
+  }
+}
+
+function handleTouchEnd(e) {
+  clearTimeout(touchHoldTimer);
+  
+  if (isTouchDragging) {
+    const items = playlistList.querySelectorAll('.m-pl-item');
+    let dropIdx = -1;
+    items.forEach(item => {
+      if (item.classList.contains('drag-over')) {
+        dropIdx = parseInt(item.dataset.idx);
+      }
+      item.classList.remove('drag-over');
+      item.classList.remove('dragging');
+    });
+    
+    if (dropIdx >= 0 && dropIdx !== touchDragIdx) {
+      reorderPlaylist(touchDragIdx, dropIdx);
+    }
+  }
+  
+  isTouchDragging = false;
+  touchDragIdx = -1;
+}
+
+function reorderPlaylist(fromIdx, toIdx) {
+  const [moved] = playlist.splice(fromIdx, 1);
+  playlist.splice(toIdx, 0, moved);
+  
+  // Update currentTrackIdx
+  if (currentTrackIdx === fromIdx) {
+    currentTrackIdx = toIdx;
+  } else if (fromIdx < currentTrackIdx && toIdx >= currentTrackIdx) {
+    currentTrackIdx--;
+  } else if (fromIdx > currentTrackIdx && toIdx <= currentTrackIdx) {
+    currentTrackIdx++;
+  }
+  
+  renderPlaylist();
 }
 
 // ─── WEBRTC (PEER CONNECTIONS) ─────────────────────────────────
