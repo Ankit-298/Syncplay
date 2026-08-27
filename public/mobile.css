@@ -350,6 +350,44 @@ body {
   transform: scale(.93);
 }
 
+.m-playlist-trigger {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  background: rgba(34, 211, 238, .15);
+  border: 1px solid rgba(34, 211, 238, .3);
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--cyan);
+  transition: all .2s;
+}
+
+.m-playlist-trigger:active {
+  transform: scale(.93);
+}
+
+.m-playlist-trigger.active {
+  background: var(--cyan);
+  color: #0a0a12;
+}
+
+.m-pl-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: var(--pink);
+  color: white;
+  font-size: .6rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 10px;
+  box-shadow: 0 0 5px rgba(236, 72, 153, .6);
+}
+
 /* ── EQUALIZER VISUALIZER ────────────────────────────────── */
 .m-viz-wrap {
   position: relative;
